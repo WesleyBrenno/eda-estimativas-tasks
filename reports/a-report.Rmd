@@ -53,6 +53,7 @@ Para nossa análise, usaremos uma estimativa por task. Caso haja mais de uma usa
 
 ```{r}
 estimativas = estimativas_raw %>%
+    filter(StatusCode == "FINISHED" | StatusCode == "COMPLETED" | StatusCode == "RELEASED", !is.na(HoursEstimate), !is.na(HoursActual)) %>%
     group_by(ProjectCode, TaskNumber, Category, Priority, Summary) %>%
     summarise(
         HoursEstimate = mean(HoursEstimate),
@@ -65,7 +66,8 @@ estimativas = estimativas_raw %>%
 ### Dados por time
 
 ```{r}
-por_time = estimativas_raw %>% 
+por_time = estimativas_raw %>%
+    filter(StatusCode == "FINISHED" | StatusCode == "COMPLETED" | StatusCode == "RELEASED", !is.na(HoursEstimate), !is.na(HoursActual)) %>%
     group_by(ProjectCode) %>% 
     summarise(devs = NROW(unique(DeveloperID)), 
               erro_medio_abs = mean(abs(HoursEstimate - HoursActual)), 
@@ -75,6 +77,61 @@ por_time = estimativas_raw %>%
 
 ## Qual a relação entre as estimativas e horas reais tomadas na empresa como um todo e em diferentes categorias de tarefa?
 
+```{r}
+estimativas %>%
+    summarise(
+        pearson = cor(HoursEstimate, HoursActual, method = "pearson"), 
+        spearman = cor(HoursEstimate, HoursActual, method = "spearman"), 
+        kendall = cor(HoursEstimate, HoursActual, method = "kendall")
+        ) 
+
+estimativas %>%
+    ggplot(aes(x=HoursEstimate, y=HoursActual, colour=Category))+
+    geom_point() +
+    scale_x_log10() + 
+    scale_y_log10()
+
+estimativas %>%
+    group_by(Category) %>%
+    summarise(
+        pearson = cor(HoursEstimate, HoursActual, method = "pearson"), 
+        spearman = cor(HoursEstimate, HoursActual, method = "spearman"), 
+        kendall = cor(HoursEstimate, HoursActual, method = "kendall")
+        ) 
+
+estimativas %>%
+    filter(Category == "Development") %>%
+    ggplot(aes(x=HoursEstimate, y=HoursActual))+
+    geom_point(colour = "#F8766D") +
+    scale_x_log10() + 
+    scale_y_log10()
+
+estimativas %>%
+    filter(Category == "Management") %>%
+    ggplot(aes(x=HoursEstimate, y=HoursActual))+
+    geom_point(colour = "#00B938") +
+    scale_x_log10() + 
+    scale_y_log10()
+
+estimativas %>%
+    filter(Category == "Operational") %>%
+    ggplot(aes(x=HoursEstimate, y=HoursActual, colour=Category))+
+    geom_point(colour = "#619CFF") +
+    scale_x_log10() + 
+    scale_y_log10()
+```
 
 ## Equipes com mais desenvolvedores produzem estimativas com mais ou menos erro que equipes menores? 
-
+```{r}
+por_time %>%
+    summarise(
+        pearson = cor(devs, erro_medio_abs, method = "pearson"), 
+        spearman = cor(devs, erro_medio_abs, method = "spearman"), 
+        kendall = cor(devs, erro_medio_abs, method = "kendall")
+    )
+    
+por_time %>%
+    ggplot(aes(x=devs, y=erro_medio_abs)) +
+    geom_point() +
+    scale_x_continuous(trans="log2")
+```
