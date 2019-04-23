@@ -72,10 +72,48 @@ por_time = estimativas_raw %>%
     summarise(devs = NROW(unique(DeveloperID)), 
               erro_medio_abs = mean(abs(HoursEstimate - HoursActual)), 
               estimativas = n())
+
 ```
 
-
 ## Qual a relação entre as estimativas e horas reais tomadas na empresa como um todo e em diferentes categorias de tarefa?
+
+Para analisar a relação entre as estimativas e horas reais, primeiro foi necessário filtrar as tasks que possuiam status "FINISHED", pois só as mesma possuiam as horas reais com valores finais. No artigo o autor diz que muitas das tasks finalizadas são mantidas com o status "COMPLETED", então tasks com esse status também foram levadas em consideração na análise. 
+
+Abaixo podemos ver que o erro médio nos projetos é 5.8 horas (a mais ou a menos).
+
+```{r}
+por_time%>%
+    summarise(
+        erro_medio = mean(erro_medio_abs))
+```
+
+Como o erro médio não é muito grande, é de se esperar que exista uma relação crescente quase linear entre as horas estimadas e as horas reais. E isso podemos conferir nos gráficos abaixo. 
+
+No primeiro gráfico utilizando uma escala linear, essa relação não fica tão perceptível, e gera uma visualização de difícil interpretação. 
+
+```{r}
+estimativas %>%
+    ggplot(aes(x=HoursEstimate, y=HoursActual, colour=Category))+
+    geom_point() + 
+    labs(
+     x = "Horas estimadas", 
+     y = "Horas atuais"
+    )
+```
+
+Para obter uma melhor visualização dados, possibilitando uma percepção maior de informações, utilizamos uma escala logarítima com base 10 para ambos os eixos, e obtivemos o gráfico a abaixo. Nele podemos visualizar que existe uma correlação forte e crescente entre as variáveis, que são confirmados pelos coeficientes de correlações.
+
+```{r}
+    estimativas %>%
+    ggplot(aes(x=HoursEstimate, y=HoursActual, colour=Category))+
+    geom_point() +
+    scale_x_log10() + 
+    scale_y_log10() +
+    labs(
+     x = "Horas estimadas", 
+     y = "Horas atuais"
+    )
+```
 
 ```{r}
 estimativas %>%
@@ -84,12 +122,46 @@ estimativas %>%
         spearman = cor(HoursEstimate, HoursActual, method = "spearman"), 
         kendall = cor(HoursEstimate, HoursActual, method = "kendall")
         ) 
+```
+
+Gerando visualizações e coeficientes de correlações por categorias das tasks (development, management operational), podemos ver que ambas possuem o mesmo padrão e apresentam correlações crescente e forte, com as tasks da categoria operational apresentando a correlação mais forte.
+
+```{r}
+estimativas %>%
+    filter(Category == "Development") %>%
+    ggplot(aes(x=HoursEstimate, y=HoursActual))+
+    geom_point(colour = "#F8766D") +
+    scale_x_log10() + 
+    scale_y_log10() +
+    labs(
+      x = "Horas estimadas", 
+      y = "Horas atuais",
+      title = "Development tasks"
+    )
 
 estimativas %>%
-    ggplot(aes(x=HoursEstimate, y=HoursActual, colour=Category))+
-    geom_point() +
+    filter(Category == "Management") %>%
+    ggplot(aes(x=HoursEstimate, y=HoursActual))+
+    geom_point(colour = "#00B938") +
     scale_x_log10() + 
-    scale_y_log10()
+    scale_y_log10() +
+    labs(
+        x = "Horas estimadas", 
+        y = "Horas atuais",
+        title = "Management tasks"
+    )
+
+estimativas %>%
+    filter(Category == "Operational") %>%
+    ggplot(aes(x=HoursEstimate, y=HoursActual, colour=Category))+
+    geom_point(colour = "#619CFF") +
+    scale_x_log10() + 
+    scale_y_log10() +
+    labs(
+        x = "Horas estimadas", 
+        y = "Horas atuais",
+        title = "Operational tasks"
+    )
 
 estimativas %>%
     group_by(Category) %>%
@@ -97,41 +169,32 @@ estimativas %>%
         pearson = cor(HoursEstimate, HoursActual, method = "pearson"), 
         spearman = cor(HoursEstimate, HoursActual, method = "spearman"), 
         kendall = cor(HoursEstimate, HoursActual, method = "kendall")
-        ) 
-
-estimativas %>%
-    filter(Category == "Development") %>%
-    ggplot(aes(x=HoursEstimate, y=HoursActual))+
-    geom_point(colour = "#F8766D") +
-    scale_x_log10() + 
-    scale_y_log10()
-
-estimativas %>%
-    filter(Category == "Management") %>%
-    ggplot(aes(x=HoursEstimate, y=HoursActual))+
-    geom_point(colour = "#00B938") +
-    scale_x_log10() + 
-    scale_y_log10()
-
-estimativas %>%
-    filter(Category == "Operational") %>%
-    ggplot(aes(x=HoursEstimate, y=HoursActual, colour=Category))+
-    geom_point(colour = "#619CFF") +
-    scale_x_log10() + 
-    scale_y_log10()
+        )
 ```
 
 ## Equipes com mais desenvolvedores produzem estimativas com mais ou menos erro que equipes menores? 
+
+Para analisar a relação entre erros e tamanhos das equipes, as taks também foram filtradas por status "FINISHED" e "COMPLETED". 
+
+No primeiro gráfico utilizando uma escala linear, temos a impressão que não exista correlação nenhuma entre as variáveis.
 ```{r}
+por_time %>%
+    ggplot(aes(x=devs, y=erro_medio_abs)) +
+    geom_point() 
+```
+
+Porém realizando uma melhoria na visualização, utilizando uma escala logarítima com base 2 para o eixo X, podemos perceber uma correlação crescente, porem bastante fraca. O que vem a ser confirmado pelos coeficientes de correlações, que possuem sinal positivo e se aproximam bastante de 0.
+
+```{r}
+por_time %>%
+    ggplot(aes(x=devs, y=erro_medio_abs)) +
+    geom_point() +
+    scale_x_continuous(trans="log2")
+
 por_time %>%
     summarise(
         pearson = cor(devs, erro_medio_abs, method = "pearson"), 
         spearman = cor(devs, erro_medio_abs, method = "spearman"), 
         kendall = cor(devs, erro_medio_abs, method = "kendall")
     )
-    
-por_time %>%
-    ggplot(aes(x=devs, y=erro_medio_abs)) +
-    geom_point() +
-    scale_x_continuous(trans="log2")
 ```
